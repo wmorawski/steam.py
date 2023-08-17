@@ -84,32 +84,35 @@ class Match:
         # self.server_id = self.watch_info.server_id
 
         self.rounds: list[Round] = []
-        for round in match_info.roundstatsall:
+        previous_scores = [0, 0]
+        for idr, round in enumerate(match_info.roundstatsall):
             player_ids = cast(list[ID32], round.reservation.account_ids)
             team_size = len(player_ids) // len(round.team_scores)
-            previous_scores = [0] * len(round.team_scores)
             teams: list[Team] = []
             for idx, score in enumerate(round.team_scores):
                 players_: list[MatchPlayer] = []
                 for id in player_ids[(idx * team_size) : (idx + 1) * team_size]:
                     player = MatchPlayer(state, players[id])
-                    idx = player_ids.index(id)
-                    player.kills = round.kills[idx]
-                    player.assists = round.assists[idx]
-                    player.deaths = round.deaths[idx]
-                    player.score = round.scores[idx]
-                    player.enemy_kills = round.enemy_kills[idx]
-                    player.enemy_head_shots = round.enemy_headshots[idx]
+                    p_idx = player_ids.index(id)
+                    player.kills = round.kills[p_idx]
+                    player.assists = round.assists[p_idx]
+                    player.deaths = round.deaths[p_idx]
+                    player.score = round.scores[p_idx]
+                    player.enemy_kills = round.enemy_kills[p_idx]
+                    player.enemy_head_shots = round.enemy_headshots[p_idx]
                     players_.append(player)
 
+                print('Round', round.team_scores, previous_scores)
+                print('Indices', idx, len(round.team_scores), len(previous_scores))
                 won = round.team_scores[idx] > previous_scores[idx]
-                if won:
-                    mvp_idx, _ = max(
-                        Counter(round.mvps[(idx * team_size) : (idx + 1) * team_size]).items(), key=itemgetter(1)
-                    )  # can't have an even number of players right?
-                    mvp = utils.get(players_, id=player_ids[mvp_idx])
-                    assert mvp
-                    mvp.mvp = True
+                previous_scores[idx] = round.team_scores[idx]
+                # if won:
+                #     mvp_idx, _ = max(
+                #         Counter(round.mvps[(idx * team_size) : (idx + 1) * team_size]).items(), key=itemgetter(1)
+                #     )  # can't have an even number of players right?
+                #     mvp = utils.get(players_, id=player_ids[mvp_idx])
+                #     assert mvp
+                #     mvp.mvp = True
                 teams.append(Team(score, won, players_))
             self.rounds.append(Round(timedelta(seconds=round.match_duration), teams, round.map))
 
